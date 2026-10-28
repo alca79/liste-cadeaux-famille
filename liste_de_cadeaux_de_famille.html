@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listes de Cadeaux de Famille 🎁</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        festive: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                        },
+                        emeraldCustom: {
+                            600: '#059669',
+                            700: '#047857',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth animations */
+        .fade-in { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased flex flex-col bg-slate-50">
+
+    <!-- LOGIN MODAL (Identity Selection) -->
+    <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border border-slate-100 fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+                    🎁
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Bienvenue en Famille !</h2>
+                <p class="text-slate-500 text-sm mt-1">Entrez votre prénom pour accéder aux listes de cadeaux partagées.</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label for="userNameInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Votre Prénom / Nom</label>
+                    <input type="text" id="userNameInput" required placeholder="ex: Marie, Thomas, Papy..." 
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-slate-800 placeholder-slate-400">
+                </div>
+                <button type="submit" class="w-full py-3.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/30 transition duration-150 active:scale-[0.99] flex items-center justify-center gap-2">
+                    <span>Rejoindre les listes</span>
+                    <i class="fa-solid font-bold fa-arrow-right text-sm"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP STRUCTURE -->
+    <div id="appContainer" class="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+
+        <!-- SIDEBAR / NAVIGATION -->
+        <aside class="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 flex flex-col flex-shrink-0">
+            <!-- Header sidebar -->
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-rose-50/50 to-amber-50/30">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">✨</span>
+                    <div>
+                        <h1 class="font-extrabold text-slate-900 text-lg leading-tight">Cadeaux Famille</h1>
+                        <p class="text-xs text-slate-500 font-medium">Listes partagées</p>
+                    </div>
+                </div>
+                <!-- Profile badge / switch button -->
+                <button onclick="logout()" title="Changer d'utilisateur" class="group flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 transition text-xs font-semibold">
+                    <span id="currentUserDisplay" class="max-w-[90px] truncate">...</span>
+                    <i class="fa-solid fa-right-from-bracket group-hover:translate-x-0.5 transition-transform"></i>
+                </button>
+            </div>
+
+            <!-- List of members -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-2">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400 px-3 mb-2 flex justify-between items-center">
+                    <span>Membres de la famille</span>
+                    <span id="memberCountBadge" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                </div>
+
+                <!-- My List Tab -->
+                <div id="myListTabContainer"></div>
+
+                <div class="my-3 border-t border-slate-100"></div>
+
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400 px-3 mb-2">
+                    Voir les autres listes
+                </div>
+                <!-- Other Members' List Tabs -->
+                <div id="otherMembersList" class="space-y-1">
+                    <!-- Rendered dynamically -->
+                    <div class="p-4 text-center text-slate-400 text-sm italic">Chargement des membres...</div>
+                </div>
+            </div>
+
+            <!-- Footer banner -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 text-xs text-slate-500 text-center">
+                <p class="flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-shield-halved text-emerald-600"></i>
+                    <span>Les surprises sont bien gardées !</span>
+                </p>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 bg-slate-50 flex flex-col h-full overflow-hidden">
+            <!-- Top bar / View Title -->
+            <header class="bg-white border-b border-slate-200/80 p-5 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="activeAvatar" class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 font-bold text-xl flex items-center justify-center border border-rose-100 shadow-sm">
+                        👤
+                    </div>
+                    <div>
+                        <h2 id="activeListTitle" class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            Chargement...
+                        </h2>
+                        <p id="activeListSubtitle" class="text-xs text-slate-500">
+                            Chargement des détails...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action button (Add item if viewing own list) -->
+                <div id="headerActions">
+                    <!-- Dynamic button inserted via JS -->
+                </div>
+            </header>
+
+            <!-- Items List Container -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <div class="max-w-4xl mx-auto">
+                    
+                    <!-- Notification Banner for own list privacy -->
+                    <div id="privacyNotice" class="hidden mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-sm flex items-start gap-3 shadow-sm">
+                        <i class="fa-solid fa-eye-slash text-amber-600 text-lg mt-0.5"></i>
+                        <div>
+                            <span class="font-bold">Secret garanti !</span> Vous ne pouvez pas voir qui a réservé vos cadeaux pour conserver la surprise le jour J.
+                        </div>
+                    </div>
+
+                    <!-- Items Grid / Container -->
+                    <div id="giftItemsContainer" class="space-y-3">
+                        <!-- Gift items rendered dynamically -->
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="emptyState" class="hidden text-center py-16 px-4">
+                        <div class="w-20 h-20 bg-slate-100 text-slate-400 rounded-3xl flex items-center justify-center mx-auto mb-4 text-3xl">
+                            🎁
+                        </div>
+                        <h3 class="text-slate-800 font-bold text-lg mb-1">Aucune idée dans cette liste</h3>
+                        <p id="emptyStateText" class="text-slate-500 text-sm max-w-sm mx-auto mb-6">Ajoutez des idées pour aider votre famille à vous faire plaisir !</p>
+                        <button id="emptyStateBtn" onclick="openAddModal()" class="hidden px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm rounded-xl transition shadow-md inline-flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Ajouter une idée</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ADD / EDIT GIFT MODAL -->
+    <div id="giftModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8 border border-slate-100 fade-in">
+            <div class="flex items-center justify-between mb-6">
+                <h3 id="modalTitle" class="text-xl font-bold text-slate-900">Ajouter une idée cadeau</h3>
+                <button onclick="closeGiftModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="giftForm" onsubmit="handleSaveGift(event)" class="space-y-4">
+                <input type="hidden" id="giftIdInput">
+
+                <div>
+                    <label for="giftTitleInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Titre de l'idée *</label>
+                    <input type="text" id="giftTitleInput" required placeholder="ex: BD Astérix, Pull chaud, Livre de cuisine..." 
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-slate-800">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="giftPriceInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Prix estimé (€)</label>
+                        <input type="text" id="giftPriceInput" placeholder="ex: 25€" 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-slate-800">
+                    </div>
+                    <div>
+                        <label for="giftUrlInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Lien Web / Boutique</label>
+                        <input type="url" id="giftUrlInput" placeholder="https://..." 
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-slate-800">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="giftDescInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Description / Précisions (Taille, couleur...)</label>
+                    <textarea id="giftDescInput" rows="3" placeholder="ex: Taille L, de préférence en bleu marine..." 
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-slate-800 resize-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-3">
+                    <button type="button" onclick="closeGiftModal()" class="px-5 py-3 text-slate-600 hover:bg-slate-100 font-semibold rounded-xl transition text-sm">
+                        Annuler
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/30 transition text-sm">
+                        Enregistrer l'idée
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase configuration setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'family-gifts-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                // Fallback default demo configuration if environment variables not set
+                apiKey: "demo-api-key",
+                authDomain: "demo-app.firebaseapp.com",
+                projectId: "demo-app",
+                storageBucket: "demo-app.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:abcdef"
+            };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // App state
+        let currentUser = localStorage.getItem('family_gifts_user') || null;
+        let selectedOwner = null; // Name of person whose list is currently being viewed
+        let allGifts = [];
+        let unsubscribeGifts = null;
+
+        // Path for public family gifts stored in Firestore
+        const giftsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'gifts');
+
+        // Init App & Authentication
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.warn("Auth initialization fallback:", err);
+            }
+
+            if (!currentUser) {
+                document.getElementById('loginModal').classList.remove('hidden');
+            } else {
+                startApp();
+            }
+        }
+
+        window.handleLogin = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('userNameInput').value.trim();
+            if (!input) return;
+            
+            // Format name nicely (Capitalized)
+            currentUser = input.charAt(0).toUpperCase() + input.slice(1);
+            localStorage.setItem('family_gifts_user', currentUser);
+            
+            document.getElementById('loginModal').classList.add('hidden');
+            startApp();
+        };
+
+        window.logout = function() {
+            if (confirm("Changer d'utilisateur ?")) {
+                localStorage.removeItem('family_gifts_user');
+                currentUser = null;
+                selectedOwner = null;
+                document.getElementById('userNameInput').value = '';
+                document.getElementById('loginModal').classList.remove('hidden');
+            }
+        };
+
+        function startApp() {
+            document.getElementById('currentUserDisplay').textContent = currentUser;
+            if (!selectedOwner) {
+                selectedOwner = currentUser; // Default to own list
+            }
+            listenToGifts();
+        }
+
+        // Realtime Firestore Subscription
+        function listenToGifts() {
+            if (unsubscribeGifts) unsubscribeGifts();
+
+            // Simple query as mandated by rule 2
+            unsubscribeGifts = onSnapshot(giftsCollectionRef, (snapshot) => {
+                allGifts = [];
+                snapshot.forEach(docSnap => {
+                    allGifts.push({
+                        id: docSnap.id,
+                        ...docSnap.data()
+                    });
+                });
+                renderUI();
+            }, (error) => {
+                console.error("Erreur de synchronisation Firestore:", error);
+            });
+        }
+
+        // Render Sidebar and Active Wishlist
+        function renderUI() {
+            renderSidebar();
+            renderMainContent();
+        }
+
+        function renderSidebar() {
+            // Get unique list of owners (plus current user if not in gifts list yet)
+            const ownersSet = new Set(allGifts.map(g => g.owner).filter(Boolean));
+            ownersSet.add(currentUser);
+
+            const owners = Array.from(ownersSet).sort();
+
+            document.getElementById('memberCountBadge').textContent = owners.length;
+
+            // Render My List tab
+            const myListContainer = document.getElementById('myListTabContainer');
+            const isMyListActive = selectedOwner === currentUser;
+            const myItemCount = allGifts.filter(g => g.owner === currentUser).length;
+
+            myListContainer.innerHTML = `
+                <button onclick="selectOwner('${currentUser}')" 
+                    class="w-full text-left p-3 rounded-2xl flex items-center justify-between transition ${isMyListActive ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20 font-bold' : 'bg-slate-100 hover:bg-slate-200/70 text-slate-800 font-semibold'}">
+                    <div class="flex items-center gap-3 truncate">
+                        <span class="w-8 h-8 rounded-xl ${isMyListActive ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-600'} flex items-center justify-center text-sm font-bold">
+                            🎁
+                        </span>
+                        <span class="truncate">Ma Liste (${currentUser})</span>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full ${isMyListActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'} font-normal">
+                        ${myItemCount}
+                    </span>
+                </button>
+            `;
+
+            // Render Other Members List
+            const otherMembersContainer = document.getElementById('otherMembersList');
+            const otherOwners = owners.filter(o => o !== currentUser);
+
+            if (otherOwners.length === 0) {
+                otherMembersContainer.innerHTML = `
+                    <div class="p-4 text-center text-slate-400 text-xs italic bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                        Aucun autre membre pour l'instant. Invitez vos proches à se connecter !
+                    </div>
+                `;
+            } else {
+                otherMembersContainer.innerHTML = otherOwners.map(owner => {
+                    const isActive = selectedOwner === owner;
+                    const items = allGifts.filter(g => g.owner === owner);
+                    const boughtCount = items.filter(g => g.bought).length;
+
+                    return `
+                        <button onclick="selectOwner('${owner}')" 
+                            class="w-full text-left p-3 rounded-2xl flex items-center justify-between transition ${isActive ? 'bg-slate-900 text-white shadow-md font-bold' : 'hover:bg-slate-100 text-slate-700 font-medium'}">
+                            <div class="flex items-center gap-3 truncate">
+                                <span class="w-8 h-8 rounded-xl ${isActive ? 'bg-slate-800 text-amber-400' : 'bg-slate-100 text-slate-600'} flex items-center justify-center text-sm font-bold">
+                                    ${owner.charAt(0)}
+                                </span>
+                                <span class="truncate">${owner}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-xs">
+                                ${boughtCount > 0 ? `<span class="text-emerald-500 font-semibold" title="${boughtCount} acheté(s)"><i class="fa-solid fa-check"></i> ${boughtCount}</span>` : ''}
+                                <span class="px-2 py-0.5 rounded-full ${isActive ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'} font-normal">
+                                    ${items.length}
+                                </span>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+            }
+        }
+
+        window.selectOwner = function(owner) {
+            selectedOwner = owner;
+            renderUI();
+        };
+
+        function renderMainContent() {
+            const isOwnList = selectedOwner === currentUser;
+            const items = allGifts.filter(g => g.owner === selectedOwner);
+
+            // Update Header
+            const activeAvatar = document.getElementById('activeAvatar');
+            const activeListTitle = document.getElementById('activeListTitle');
+            const activeListSubtitle = document.getElementById('activeListSubtitle');
+            const headerActions = document.getElementById('headerActions');
+            const privacyNotice = document.getElementById('privacyNotice');
+
+            activeAvatar.textContent = isOwnList ? '🎁' : selectedOwner.charAt(0);
+            activeListTitle.textContent = isOwnList ? 'Ma Liste d\'Idées' : `Liste de ${selectedOwner}`;
+            activeListSubtitle.textContent = isOwnList 
+                ? 'Gérez vos souhaits. Les réservations des autres vous restent cachées !'
+                : `Cochez ce que vous souhaitez offrir à ${selectedOwner}.`;
+
+            if (isOwnList) {
+                privacyNotice.classList.remove('hidden');
+                headerActions.innerHTML = `
+                    <button onclick="openAddModal()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-rose-600/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Ajouter une idée</span>
+                    </button>
+                `;
+            } else {
+                privacyNotice.classList.add('hidden');
+                headerActions.innerHTML = '';
+            }
+
+            // Render Items
+            const itemsContainer = document.getElementById('giftItemsContainer');
+            const emptyState = document.getElementById('emptyState');
+
+            if (items.length === 0) {
+                itemsContainer.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                const emptyText = document.getElementById('emptyStateText');
+                const emptyBtn = document.getElementById('emptyStateBtn');
+                if (isOwnList) {
+                    emptyText.textContent = "Vous n'avez pas encore ajouté d'idées à votre liste.";
+                    emptyBtn.classList.remove('hidden');
+                } else {
+                    emptyText.textContent = `${selectedOwner} n'a pas encore ajouté d'idées à sa liste.`;
+                    emptyBtn.classList.add('hidden');
+                }
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            itemsContainer.innerHTML = items.map(item => {
+                const isBought = !isOwnList && item.bought; // Secret rule: own list never sees bought status
+                const boughtByMe = !isOwnList && item.boughtBy === currentUser;
+
+                return `
+                    <div class="bg-white rounded-2xl p-4 sm:p-5 border ${isBought ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200/80'} shadow-sm hover:shadow-md transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1 space-y-1">
+                            <div class="flex items-start gap-3">
+                                <h4 class="font-bold text-slate-900 text-base leading-snug ${isBought ? 'line-through text-slate-500' : ''}">
+                                    ${escapeHtml(item.title)}
+                                </h4>
+                                ${item.price ? `<span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200/60 flex-shrink-0">${escapeHtml(item.price)}</span>` : ''}
+                            </div>
+
+                            ${item.description ? `<p class="text-xs text-slate-600 whitespace-pre-line">${escapeHtml(item.description)}</p>` : ''}
+
+                            ${item.url ? `
+                                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" 
+                                   class="inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline pt-1">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                    <span>Voir le produit en ligne</span>
+                                </a>
+                            ` : ''}
+
+                            <!-- Reservation info (only visible to family, hidden from list owner) -->
+                            ${!isOwnList && item.bought ? `
+                                <div class="pt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <span>Réservé / Acheté par ${escapeHtml(item.boughtBy || 'un membre de la famille')}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Actions section -->
+                        <div class="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end flex-shrink-0">
+                            ${isOwnList ? `
+                                <button onclick="openEditModal('${item.id}')" class="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition" title="Modifier">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteGift('${item.id}')" class="p-2.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition" title="Supprimer">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            ` : `
+                                <button onclick="toggleBought('${item.id}', ${!item.bought})" 
+                                    class="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition flex items-center gap-2 ${
+                                        item.bought 
+                                            ? (boughtByMe ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm' : 'bg-slate-200 text-slate-500 cursor-not-allowed')
+                                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                    }" ${item.bought && !boughtByMe ? 'disabled' : ''}>
+                                    <i class="fa-solid ${item.bought ? 'fa-check' : 'fa-gift'}"></i>
+                                    <span>${item.bought ? (boughtByMe ? 'Réservé (Annuler)' : 'Réservé') : 'Réserver / Acheté'}</span>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Modal Controls
+        window.openAddModal = function() {
+            document.getElementById('modalTitle').textContent = "Ajouter une idée cadeau";
+            document.getElementById('giftForm').reset();
+            document.getElementById('giftIdInput').value = '';
+            document.getElementById('giftModal').classList.remove('hidden');
+        };
+
+        window.openEditModal = function(giftId) {
+            const gift = allGifts.find(g => g.id === giftId);
+            if (!gift) return;
+
+            document.getElementById('modalTitle').textContent = "Modifier l'idée cadeau";
+            document.getElementById('giftIdInput').value = gift.id;
+            document.getElementById('giftTitleInput').value = gift.title || '';
+            document.getElementById('giftPriceInput').value = gift.price || '';
+            document.getElementById('giftUrlInput').value = gift.url || '';
+            document.getElementById('giftDescInput').value = gift.description || '';
+
+            document.getElementById('giftModal').classList.remove('hidden');
+        };
+
+        window.closeGiftModal = function() {
+            document.getElementById('giftModal').classList.add('hidden');
+        };
+
+        // Firestore Mutations
+        window.handleSaveGift = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('giftIdInput').value;
+            const title = document.getElementById('giftTitleInput').value.trim();
+            const price = document.getElementById('giftPriceInput').value.trim();
+            const url = document.getElementById('giftUrlInput').value.trim();
+            const description = document.getElementById('giftDescInput').value.trim();
+
+            if (!title) return;
+
+            const payload = {
+                owner: currentUser,
+                title,
+                price,
+                url,
+                description,
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                if (id) {
+                    // Edit existing item
+                    await updateDoc(doc(giftsCollectionRef, id), payload);
+                } else {
+                    // Create new item
+                    payload.bought = false;
+                    payload.boughtBy = null;
+                    payload.createdAt = new Date().toISOString();
+                    await addDoc(giftsCollectionRef, payload);
+                }
+                closeGiftModal();
+            } catch (err) {
+                console.error("Erreur d'enregistrement:", err);
+            }
+        };
+
+        window.deleteGift = async function(giftId) {
+            if (confirm("Voulez-vous vraiment supprimer cette idée de cadeau ?")) {
+                try {
+                    await deleteDoc(doc(giftsCollectionRef, giftId));
+                } catch (err) {
+                    console.error("Erreur de suppression:", err);
+                }
+            }
+        };
+
+        window.toggleBought = async function(giftId, targetState) {
+            try {
+                const giftRef = doc(giftsCollectionRef, giftId);
+                await updateDoc(giftRef, {
+                    bought: targetState,
+                    boughtBy: targetState ? currentUser : null
+                });
+            } catch (err) {
+                console.error("Erreur lors de la réservation:", err);
+            }
+        };
+
+        // Helper function to escape HTML string
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+
+        // Run Init
+        window.onload = initAuth;
+    </script>
+</body>
+</html>
